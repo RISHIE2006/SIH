@@ -1,0 +1,26 @@
+# dependencies
+/node_modules
+/.pnp
+.pnp.js
+
+# build outputs
+/.next/
+/dist/
+/out/
+tsconfig.tsbuildinfo
+
+# environment files
+.env
+.env*.local
+
+# IDEs & agent configs
+.agents/
+.claude/
+.cursor/
+.devin/
+
+# logs & OS files
+*.log
+.DS_Store
+Thumbs.db
+

@@ -1,0 +1,209 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum Language {
+  en
+  hi
+}
+
+enum UserRole {
+  farmer
+  operator
+  admin
+}
+
+enum CropType {
+  Wheat
+  Paddy
+  Pulses
+  Mustard
+  Maize
+}
+
+enum BookingStatus {
+  Booked
+  In_Queue
+  Inspected
+  Weighed
+  Completed
+  Cancelled
+}
+
+enum CenterStatus {
+  Open
+  Full
+  Closing_Soon
+}
+
+enum Grade {
+  Grade_A
+  Grade_B
+  Fair_Average_Quality
+}
+
+enum PaymentStatus {
+  Processing
+  Approved
+  Disbursed
+  Credited
+}
+
+enum SmsType {
+  Booking_Confirmation
+  Queue_Alert
+  Inspection_Update
+  Payment_Credit
+}
+
+enum SmsStatus {
+  Delivered
+  Sent
+}
+
+enum OperatorStatus {
+  online
+  offline
+  break
+}
+
+model Farmer {
+  id                String   @id @default(cuid())
+  name              String
+  phone             String   @unique
+  aadhaar           String   @unique
+  state             String
+  district          String
+  village           String
+  landSizeAcres     Float
+  cropType          CropType
+  bankAccount       String
+  ifscCode          String
+  verified          Boolean  @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  bookings          SlotBooking[]
+  procurements      ProcurementRecord[]
+  smsLogs           SmsLog[]
+
+  @@map("farmers")
+}
+
+model ProcurementCenter {
+  id                String   @id @default(cuid())
+  name              String
+  district          String
+  state             String
+  address           String
+  capacityPerDay    Int
+  currentBookings   Int      @default(0)
+  liveQueueLength   Int      @default(0)
+  avgWaitMins       Int      @default(15)
+  operatingHours    String
+  status            CenterStatus @default(Open)
+  contactPerson     String
+  phone             String
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  bookings          SlotBooking[]
+  operators         ProcurementOperator[]
+
+  @@map("procurement_centers")
+}
+
+model SlotBooking {
+  id                        String        @id @default(cuid())
+  tokenId                   String        @unique
+  farmerId                  String
+  farmer                    Farmer        @relation(fields: [farmerId], references: [id])
+  centerId                  String
+  center                    ProcurementCenter @relation(fields: [centerId], references: [id])
+  date                      DateTime
+  timeSlot                  String
+  cropType                  CropType
+  estimatedQuantityQuintals Float
+  status                    BookingStatus @default(Booked)
+  currentCounter            String?
+  queuePosition             Int?
+  estimatedWaitTimeMins     Int?
+  createdAt                 DateTime      @default(now())
+  updatedAt                 DateTime      @updatedAt
+
+  procurement               ProcurementRecord?
+
+  @@map("slot_bookings")
+}
+
+model QualityAssessment {
+  id                     String   @id @default(cuid())
+  moisturePercentage     Float
+  foreignMatterPercentage Float
+  damagedGrainsPercentage Float
+  grade                  Grade
+  procurementRecordId    String   @unique
+  procurementRecord      ProcurementRecord @relation(fields: [procurementRecordId], references: [id])
+
+  @@map("quality_assessments")
+}
+
+model ProcurementRecord {
+  id                  String        @id @default(cuid())
+  bookingId           String        @unique
+  booking             SlotBooking   @relation(fields: [bookingId], references: [id])
+  tokenId             String
+  farmerId            String
+  farmer              Farmer        @relation(fields: [farmerId], references: [id])
+  farmerName          String
+  farmerPhone         String
+  centerName          String
+  cropType            CropType
+  assessment          QualityAssessment?
+  grossWeightQuintals Float
+  netWeightQuintals   Float
+  mspRatePerQuintal   Int
+  totalAmount         Int
+  paymentStatus       PaymentStatus @default(Processing)
+  dbtRefNo            String?
+  processedAt         DateTime      @default(now())
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  @@map("procurement_records")
+}
+
+model SmsLog {
+  id        String   @id @default(cuid())
+  phone     String
+  message   String
+  sentAt    DateTime @default(now())
+  type      SmsType
+  status    SmsStatus @default(Sent)
+  farmerId  String?
+  farmer    Farmer?  @relation(fields: [farmerId], references: [id])
+
+  @@map("sms_logs")
+}
+
+model ProcurementOperator {
+  id                String         @id @default(cuid())
+  name              String
+  email             String         @unique
+  phone             String
+  centerId          String
+  center            ProcurementCenter @relation(fields: [centerId], references: [id])
+  status            OperatorStatus @default(online)
+  farmersProcessed  Int            @default(0)
+  currentQueue      Int            @default(0)
+  lastActive        DateTime       @default(now())
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  @@map("procurement_operators")
+}
